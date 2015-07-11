@@ -1,14 +1,19 @@
 package io.finch
 package client
 
+import cats.data.Xor
 import com.twitter.finagle.httpx.{HeaderMap, Response}
 import com.twitter.io.Buf
 
 sealed trait Resource[A] { 
   val headers: HeaderMap
   val content: A
-  def as[B](implicit ev: A => Buf, d: DecodeResource[B]): Resource[B] = 
-    Ok(headers, d(content))
+
+  def as[B](f: A => B): Resource[B] = Ok(headers, f(content))
+  def asString(): String Xor Resource[A] = Utf8.unapply(buf) match {
+      case Some(x) => Xor.Right(Ok(headers, x.toString))
+      case None    => Xor.Left("could not decode Buf => String")
+  }
 }
 
 object Resource {
